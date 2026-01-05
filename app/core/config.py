@@ -7,8 +7,6 @@ class Settings(BaseSettings):
     )
 
     APP_NAME: str
-    ENV: str
-
     # Bedrock
     MODEL_ID: str
     MAXTOKEN: int
