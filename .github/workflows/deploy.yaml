@@ -10,12 +10,27 @@ jobs:
 
     env:
       # -------------------------------
-      # AWS / ECR (BUILD CONTEXT ONLY)
+      # AWS / ECR
       # -------------------------------
       AWS_REGION: ${{ secrets.AWS_REGION }}
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
       IMAGE_TAG: ${{ github.sha }}
+
+      # -------------------------------
+      # TEST ENV (SAFE / MOCKED)
+      # -------------------------------
+      APP_NAME: llm_fastapi
+      ENV: test
+      MODEL_ID: dummy
+      MAXTOKEN: 10
+      TEMPERATURE: 0.1
+      TOPP: 0.9
+      JWT_SECRET: test-secret
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_MINUTES: 60
+      AUTH_USERNAME: admin
+      AUTH_PASSWORD: admin123
 
     steps:
       # =====================================================
@@ -74,10 +89,6 @@ jobs:
         run: |
           docker push \
             $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
-
-      # =====================================================
-      # 5. DEPLOY TO EC2 (SSH) ✅ FIXED
-      # =====================================================
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
