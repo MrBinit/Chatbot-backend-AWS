@@ -100,5 +100,5 @@ jobs:
 
           script: |
             set -e
-            cd /home/ubuntu/Chatbot-backend-AWS
+            cd /home/ubuntu/
             ./deploy.sh
