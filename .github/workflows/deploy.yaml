@@ -35,7 +35,6 @@ jobs:
     steps:
       # =====================================================
       # 1. CHECKOUT
-      # =====================================================
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -99,7 +98,6 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          key_format: base64
           port: 22
           timeout: 60s
 
