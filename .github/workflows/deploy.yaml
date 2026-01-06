@@ -35,11 +35,12 @@ jobs:
     steps:
       # =====================================================
       # 1. CHECKOUT
+      # =====================================================
       - name: Checkout code
         uses: actions/checkout@v4
 
       # =====================================================
-      # 2. TESTS (NO AWS CALLS)
+      # 2. TESTS
       # =====================================================
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -68,9 +69,9 @@ jobs:
 
       - name: Login to Amazon ECR
         run: |
-          aws ecr get-login-password --region $AWS_REGION \
+          aws ecr get-login-password --region "$AWS_REGION" \
           | docker login --username AWS \
-            --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+            --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
 
       # =====================================================
       # 4. BUILD & PUSH IMAGE
@@ -90,10 +91,11 @@ jobs:
             $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
 
       # =====================================================
-      # 5. DEPLOY TO EC2 (SSH)
+      # 5. DEPLOY TO EC2 (SSH)  ✅ FIXED
       # =====================================================
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
+        envs: AWS_REGION,AWS_ACCOUNT_ID,ECR_REPOSITORY,IMAGE_TAG
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
@@ -105,15 +107,15 @@ jobs:
             set -e
 
             echo "Logging into ECR from EC2..."
-            aws ecr get-login-password --region $AWS_REGION \
+            aws ecr get-login-password --region "$AWS_REGION" \
             | docker login --username AWS \
-              --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+              --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
 
             echo "Moving to app directory..."
             cd ~/Chatbot-backend-AWS
 
             echo "Updating image tag..."
-            export IMAGE_TAG=${{ github.sha }}
+            export IMAGE_TAG=$IMAGE_TAG
 
             echo "Stopping containers..."
             docker compose down
