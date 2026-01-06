@@ -1,5 +1,6 @@
 import pytest
 from unittest.mock import patch, AsyncMock
+#made some new changes
 @pytest.mark.asyncio
 async def test_chat_requires_auth(client):
     response = await client.post(
@@ -17,7 +18,7 @@ async def test_chat_with_valid_token(client):
     token = login.json()["access_token"]
 
     with patch(
-        "app.api.v1.chat.generate_reply", 
+        "app.api.v1.chat.generate_reply",
         new_callable=AsyncMock,
         return_value="mocked response",
     ):
