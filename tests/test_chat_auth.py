@@ -8,13 +8,13 @@ async def test_chat_requires_auth(client):
     )
     assert response.status_code == 401
 
-
 @pytest.mark.asyncio
 async def test_chat_with_valid_token(client):
     login = await client.post(
         "/api/v1/auth/login",
         json={"username": "admin", "password": "admin123"},
     )
+
     token = login.json()["access_token"]
 
     with patch(
