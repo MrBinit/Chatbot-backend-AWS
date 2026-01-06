@@ -101,25 +101,41 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           timeout: 60s
-          envs: AWS_REGION,AWS_ACCOUNT_ID,ECR_REPOSITORY,IMAGE_TAG
+
           script: |
             set -e
 
-            echo "Logging into ECR from EC2..."
+            echo "Fetching config from SSM..."
+
+            export AWS_REGION=$(aws ssm get-parameter \
+              --name "/llm-fastapi/AWS_REGION" \
+              --query "Parameter.Value" \
+              --output text)
+
+            export AWS_ACCOUNT_ID=$(aws ssm get-parameter \
+              --name "/llm-fastapi/AWS_ACCOUNT_ID" \
+              --query "Parameter.Value" \
+              --output text)
+
+            export ECR_REPOSITORY=$(aws ssm get-parameter \
+              --name "/llm-fastapi/ECR_REPOSITORY" \
+              --query "Parameter.Value" \
+              --output text)
+
+            export IMAGE_TAG=$(aws ssm get-parameter \
+              --name "/llm-fastapi/IMAGE_TAG" \
+              --query "Parameter.Value" \
+              --output text)
+
+            echo "Resolved image:"
+            echo "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG"
+
+            echo "Logging into ECR..."
             aws ecr get-login-password --region "$AWS_REGION" \
             | docker login --username AWS \
               --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
 
-            echo "Moving to app directory..."
+            echo "Deploying..."
             cd ~/Chatbot-backend-AWS
-
-            echo "Stopping containers..."
-            docker compose down
-
-            echo "Pulling latest image..."
             docker compose pull
-
-            echo "Starting containers..."
             docker compose up -d
-
-            echo "Deployment complete."
