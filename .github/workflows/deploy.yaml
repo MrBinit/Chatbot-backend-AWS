@@ -12,6 +12,7 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+      IMAGE_TAG: ${{ github.sha }}
 
       # Test envs (mocked)
       APP_NAME: llm_fastapi
@@ -30,14 +31,12 @@ jobs:
     # -------------------------------
     # 1. CHECKOUT
     # -------------------------------
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
     # -------------------------------
-    # 2. PYTHON + TESTS (CI)
+    # 2. TESTS
     # -------------------------------
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - uses: actions/setup-python@v5
       with:
         python-version: "3.10"
 
@@ -48,13 +47,13 @@ jobs:
 
     - name: Run tests
       run: |
+        export PYTHONPATH=$PYTHONPATH:$(pwd)
         pytest -q
 
     # -------------------------------
     # 3. AWS AUTH
     # -------------------------------
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
+    - uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -67,21 +66,21 @@ jobs:
           --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
     # -------------------------------
-    # 4. BUILD + PUSH IMAGE
+    # 4. BUILD + PUSH
     # -------------------------------
     - name: Build Docker image
       run: |
-        docker build -t $ECR_REPOSITORY:latest .
+        docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
 
-    - name: Tag Docker image
+    - name: Tag image
       run: |
-        docker tag $ECR_REPOSITORY:latest \
-        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:latest
+        docker tag $ECR_REPOSITORY:$IMAGE_TAG \
+        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
 
-    - name: Push image to ECR
+    - name: Push image
       run: |
         docker push \
-        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:latest
+        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
 
     # -------------------------------
     # 5. DEPLOY TO EC2
@@ -94,11 +93,14 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           set -e
+
           aws ecr get-login-password --region $AWS_REGION \
           | docker login --username AWS \
             --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
           cd ~/Chatbot-backend-AWS
+
+          export IMAGE_TAG=${{ github.sha }}
 
           docker compose down
           docker compose pull
