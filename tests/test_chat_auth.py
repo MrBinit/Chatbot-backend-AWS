@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import patch, AsyncMock
 #made some new changes in this based on the experiences
+#new changes
 @pytest.mark.asyncio
 async def test_chat_requires_auth(client):
     response = await client.post(
