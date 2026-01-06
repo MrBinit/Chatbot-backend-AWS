@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 @pytest.mark.asyncio
 async def test_chat_requires_auth(client):
@@ -12,16 +12,15 @@ async def test_chat_requires_auth(client):
 
 @pytest.mark.asyncio
 async def test_chat_with_valid_token(client):
-    # Login first
     login = await client.post(
         "/api/v1/auth/login",
         json={"username": "admin", "password": "admin123"},
     )
     token = login.json()["access_token"]
 
-    # Mock Bedrock call
     with patch(
         "app.services.bedrock_service.generate_reply",
+        new_callable=AsyncMock,
         return_value="mocked response",
     ):
         response = await client.post(
