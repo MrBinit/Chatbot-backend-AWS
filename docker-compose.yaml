@@ -1,11 +1,7 @@
-version: "3.9"
-
 services:
   api:
-    image: llm-fastapi
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}
     container_name: llm-fastapi
     ports:
       - "8000:8000"
     restart: always
-    env_file:
-      - .env
