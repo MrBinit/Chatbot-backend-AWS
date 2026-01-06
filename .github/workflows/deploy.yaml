@@ -9,12 +9,17 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      # -------------------------------
+      # AWS / ECR
+      # -------------------------------
       AWS_REGION: ${{ secrets.AWS_REGION }}
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
       ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
       IMAGE_TAG: ${{ github.sha }}
 
-      # Test envs (mocked)
+      # -------------------------------
+      # TEST ENV (SAFE / MOCKED)
+      # -------------------------------
       APP_NAME: llm_fastapi
       ENV: test
       MODEL_ID: dummy
@@ -28,15 +33,17 @@ jobs:
       AUTH_PASSWORD: admin123
 
     steps:
-    # -------------------------------
+    # =====================================================
     # 1. CHECKOUT
-    # -------------------------------
-    - uses: actions/checkout@v4
+    # =====================================================
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-    # -------------------------------
-    # 2. TESTS
-    # -------------------------------
-    - uses: actions/setup-python@v5
+    # =====================================================
+    # 2. TESTS (NO AWS CALLS)
+    # =====================================================
+    - name: Setup Python
+      uses: actions/setup-python@v5
       with:
         python-version: "3.10"
 
@@ -50,10 +57,11 @@ jobs:
         export PYTHONPATH=$PYTHONPATH:$(pwd)
         pytest -q
 
-    # -------------------------------
-    # 3. AWS AUTH
-    # -------------------------------
-    - uses: aws-actions/configure-aws-credentials@v4
+    # =====================================================
+    # 3. AWS AUTH (GITHUB RUNNER)
+    # =====================================================
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -65,26 +73,26 @@ jobs:
         | docker login --username AWS \
           --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
-    # -------------------------------
-    # 4. BUILD + PUSH
-    # -------------------------------
+    # =====================================================
+    # 4. BUILD & PUSH IMAGE
+    # =====================================================
     - name: Build Docker image
       run: |
         docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
 
-    - name: Tag image
+    - name: Tag Docker image
       run: |
         docker tag $ECR_REPOSITORY:$IMAGE_TAG \
-        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
+          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
 
-    - name: Push image
+    - name: Push Docker image to ECR
       run: |
         docker push \
-        $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
+          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
 
-    # -------------------------------
-    # 5. DEPLOY TO EC2
-    # -------------------------------
+    # =====================================================
+    # 5. DEPLOY TO EC2 (SSH)
+    # =====================================================
     - name: Deploy to EC2
       uses: appleboy/ssh-action@v1.0.3
       with:
@@ -94,14 +102,24 @@ jobs:
         script: |
           set -e
 
+          echo "Logging into ECR from EC2..."
           aws ecr get-login-password --region $AWS_REGION \
           | docker login --username AWS \
             --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
+          echo "Moving to app directory..."
           cd ~/Chatbot-backend-AWS
 
+          echo "Updating image tag..."
           export IMAGE_TAG=${{ github.sha }}
 
+          echo "Stopping containers..."
           docker compose down
+
+          echo "Pulling latest image..."
           docker compose pull
+
+          echo "Starting containers..."
           docker compose up -d
+
+          echo "Deployment complete."
