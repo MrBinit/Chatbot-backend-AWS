@@ -91,18 +91,17 @@ jobs:
             $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
 
       # =====================================================
-      # 5. DEPLOY TO EC2 (SSH)  ✅ FIXED
+      # 5. DEPLOY TO EC2 (SSH) ✅ CORRECT
       # =====================================================
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
-        envs: AWS_REGION,AWS_ACCOUNT_ID,ECR_REPOSITORY,IMAGE_TAG
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           timeout: 60s
-
+          envs: AWS_REGION,AWS_ACCOUNT_ID,ECR_REPOSITORY,IMAGE_TAG
           script: |
             set -e
 
@@ -113,9 +112,6 @@ jobs:
 
             echo "Moving to app directory..."
             cd ~/Chatbot-backend-AWS
-
-            echo "Updating image tag..."
-            export IMAGE_TAG=$IMAGE_TAG
 
             echo "Stopping containers..."
             docker compose down
