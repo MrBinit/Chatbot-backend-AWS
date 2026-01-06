@@ -21,4 +21,5 @@ async def test_login_failure(client):
     )
 
     assert response.status_code == 401
-    assert "error" in response.json()
+    assert "error" in response.json()["detail"]
+

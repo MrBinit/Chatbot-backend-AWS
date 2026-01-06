@@ -1,10 +1,9 @@
 import pytest
 from unittest.mock import patch, AsyncMock
-
 @pytest.mark.asyncio
 async def test_chat_requires_auth(client):
     response = await client.post(
-        "/api/v1/chat",
+        "/api/v1/chat/",
         json={"message": "hello"},
     )
     assert response.status_code == 401
@@ -14,7 +13,7 @@ async def test_chat_requires_auth(client):
 async def test_chat_with_valid_token(client):
     login = await client.post(
         "/api/v1/auth/login",
-        json={"username": "admin", "password": "admin123"},
+        json={"username": "admin", "password": "admin"},
     )
     token = login.json()["access_token"]
 
@@ -24,7 +23,7 @@ async def test_chat_with_valid_token(client):
         return_value="mocked response",
     ):
         response = await client.post(
-            "/api/v1/chat",
+            "/api/v1/chat/",
             headers={"Authorization": f"Bearer {token}"},
             json={"message": "hello"},
         )
