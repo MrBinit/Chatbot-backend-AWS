@@ -1,6 +1,6 @@
 services:
   api:
-    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:${IMAGE_TAG}
+    image: 173763384281.dkr.ecr.us-east-1.amazonaws.com/llm-fastapi:latest
     container_name: llm-fastapi
     ports:
       - "8000:8000"
