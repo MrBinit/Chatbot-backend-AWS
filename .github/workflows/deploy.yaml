@@ -33,93 +33,97 @@ jobs:
       AUTH_PASSWORD: admin123
 
     steps:
-    # =====================================================
-    # 1. CHECKOUT
-    # =====================================================
-    - name: Checkout code
-      uses: actions/checkout@v4
+      # =====================================================
+      # 1. CHECKOUT
+      # =====================================================
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # =====================================================
-    # 2. TESTS (NO AWS CALLS)
-    # =====================================================
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.10"
+      # =====================================================
+      # 2. TESTS (NO AWS CALLS)
+      # =====================================================
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
 
-    - name: Install dependencies
-      run: |
-        pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Run tests
-      run: |
-        export PYTHONPATH=$PYTHONPATH:$(pwd)
-        pytest -q
+      - name: Run tests
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest -q
 
-    # =====================================================
-    # 3. AWS AUTH (GITHUB RUNNER)
-    # =====================================================
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+      # =====================================================
+      # 3. AWS AUTH (GITHUB RUNNER)
+      # =====================================================
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Login to Amazon ECR
-      run: |
-        aws ecr get-login-password --region $AWS_REGION \
-        | docker login --username AWS \
-          --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-
-    # =====================================================
-    # 4. BUILD & PUSH IMAGE
-    # =====================================================
-    - name: Build Docker image
-      run: |
-        docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
-
-    - name: Tag Docker image
-      run: |
-        docker tag $ECR_REPOSITORY:$IMAGE_TAG \
-          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
-
-    - name: Push Docker image to ECR
-      run: |
-        docker push \
-          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
-
-    # =====================================================
-    # 5. DEPLOY TO EC2 (SSH)
-    # =====================================================
-    - name: Deploy to EC2
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USER }}
-        key: ${{ secrets.EC2_SSH_KEY }}
-        script: |
-          set -e
-
-          echo "Logging into ECR from EC2..."
+      - name: Login to Amazon ECR
+        run: |
           aws ecr get-login-password --region $AWS_REGION \
           | docker login --username AWS \
             --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
-          echo "Moving to app directory..."
-          cd ~/Chatbot-backend-AWS
+      # =====================================================
+      # 4. BUILD & PUSH IMAGE
+      # =====================================================
+      - name: Build Docker image
+        run: |
+          docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
 
-          echo "Updating image tag..."
-          export IMAGE_TAG=${{ github.sha }}
+      - name: Tag Docker image
+        run: |
+          docker tag $ECR_REPOSITORY:$IMAGE_TAG \
+            $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
 
-          echo "Stopping containers..."
-          docker compose down
+      - name: Push Docker image to ECR
+        run: |
+          docker push \
+            $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
 
-          echo "Pulling latest image..."
-          docker compose pull
+      # =====================================================
+      # 5. DEPLOY TO EC2 (SSH)
+      # =====================================================
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          key_format: base64
+          port: 22
+          timeout: 60s
 
-          echo "Starting containers..."
-          docker compose up -d
+          script: |
+            set -e
 
-          echo "Deployment complete."
+            echo "Logging into ECR from EC2..."
+            aws ecr get-login-password --region $AWS_REGION \
+            | docker login --username AWS \
+              --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+            echo "Moving to app directory..."
+            cd ~/Chatbot-backend-AWS
+
+            echo "Updating image tag..."
+            export IMAGE_TAG=${{ github.sha }}
+
+            echo "Stopping containers..."
+            docker compose down
+
+            echo "Pulling latest image..."
+            docker compose pull
+
+            echo "Starting containers..."
+            docker compose up -d
+
+            echo "Deployment complete."
